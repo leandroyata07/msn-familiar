@@ -1146,6 +1146,8 @@
         }
 
         // ==================== ESTADO GLOBAL ====================
+        let isApprovingUser = false; // Flag para evitar conflito durante aprovação
+        
         const state = {
             users: JSON.parse(localStorage.getItem('messengerUsers')) || {
                 'demo@email.com': {
@@ -2180,8 +2182,17 @@
         }
 
         function approveUser(email) {
+            console.log('🔵 approveUser() chamada para:', email);
+            
             if (confirm(`Aprovar cadastro de ${email}?`)) {
+                console.log('✅ Admin confirmou aprovação');
+                
+                isApprovingUser = true; // BLOQUEAR LISTENERS TEMPORARIAMENTE
+                console.log('🔒 Bloqueando listeners durante aprovação');
+                
                 const user = state.pendingUsers[email];
+                console.log('📦 Dados do usuário pendente:', user);
+                
                 if (user) {
                     const approvedUser = {
                         ...user,
@@ -2189,27 +2200,71 @@
                         approvedAt: new Date().toISOString()
                     };
                     
+                    console.log('📝 Usuário sendo aprovado:', approvedUser);
+                    
                     state.users[email] = approvedUser;
                     delete state.pendingUsers[email];
                     saveData();
+                    console.log('💾 Dados salvos localmente');
                     
                     // 🔥 Sincronizar aprovação com Firebase (se disponível)
                     if (useFirebase && database) {
+                        console.log('🔥 Sincronizando com Firebase...');
+                        console.log('useFirebase:', useFirebase);
+                        console.log('database:', database);
+                        
                         try {
                             const emailKey = email.replace(/\./g, '_').replace(/@/g, '_');
+                            console.log('🔑 emailKey para Firebase:', emailKey);
+                            
+                            // Gravar usuário aprovado
                             database.ref(`users/${emailKey}`).set({
                                 ...approvedUser,
                                 email: email
+                            }).then(() => {
+                                console.log('✅ Usuário aprovado gravado no Firebase em users/' + emailKey);
+                                
+                                // Remover de pendentes
+                                return database.ref(`pendingUsers/${emailKey}`).remove();
+                            }).then(() => {
+                                console.log('✅ Usuário removido de pendingUsers/' + emailKey);
+                                
+                                // ESPERAR 1 SEGUNDO ANTES DE DESBLOQUEAR
+                                setTimeout(() => {
+                                    isApprovingUser = false;
+                                    console.log('🔓 Listeners desbloqueados');
+                                    
+                                    // Atualizar UI
+                                    switchAdminTab('pending');
+                                    showNotification(`✅ ${email} aprovado com sucesso!`, 'success');
+                                    console.log('✅ Processo de aprovação concluído!');
+                                }, 1000);
+                                
+                            }).catch(e => {
+                                console.error('❌ ERRO ao sincronizar:', e);
+                                isApprovingUser = false;
                             });
-                            database.ref(`pendingUsers/${emailKey}`).remove();
+                            
                         } catch (e) {
-                            console.warn('⚠️ Erro ao sincronizar com Firebase, mas aprovado localmente:', e);
+                            console.error('❌ ERRO GERAL ao sincronizar com Firebase:', e);
+                            isApprovingUser = false;
                         }
+                    } else {
+                        console.warn('⚠️ Firebase não disponível!');
+                        console.warn('useFirebase:', useFirebase);
+                        console.warn('database:', database);
+                        
+                        isApprovingUser = false;
+                        switchAdminTab('pending');
+                        showNotification(`✅ ${email} aprovado com sucesso!`, 'success');
+                        console.log('✅ Processo de aprovação concluído!');
                     }
-                    
-                    switchAdminTab('pending');
-                    showNotification(`✅ ${email} aprovado com sucesso!`, 'success');
+                } else {
+                    console.error('❌ Usuário não encontrado em pendingUsers!');
+                    isApprovingUser = false;
                 }
+            } else {
+                console.log('❌ Admin cancelou a aprovação');
             }
         }
 
@@ -2796,6 +2851,12 @@
             
             try {
                 database.ref('pendingUsers').on('value', (snapshot) => {
+                    // IGNORAR SE ESTÁ APROVANDO
+                    if (isApprovingUser) {
+                        console.log('⏸️ Ignorando atualização do Firebase (aprovando usuário)');
+                        return;
+                    }
+                    
                     console.log('🔔 FIREBASE NOTIFICOU MUDANÇA em pendingUsers!');
                     const fbPendingUsers = snapshot.val() || {};
                     console.log('📦 Dados recebidos do Firebase:', fbPendingUsers);
