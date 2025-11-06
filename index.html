@@ -2000,13 +2000,13 @@
                     <div style="background: #f8f8f8; padding: 15px; border-radius: 5px; border-left: 4px solid #ff6b6b;">
                         <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
                             <div style="flex: 1;">
-                                <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">${user.name}</p>
-                                <p style="margin: 0 0 5px 0; font-size: 12px; color: #666;">📧 ${user.email}</p>
+                                <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">${escapeHtml(user.name)}</p>
+                                <p style="margin: 0 0 5px 0; font-size: 12px; color: #666;">📧 ${escapeHtml(user.email)}</p>
                                 <p style="margin: 0; font-size: 11px; color: #999;">Solicitado em: ${date}</p>
                             </div>
                             <div style="display: flex; gap: 8px;">
-                                <button onclick="approveUser('${user.email}')" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">✅ Aprovar</button>
-                                <button onclick="rejectUser('${user.email}')" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">❌ Rejeitar</button>
+                                <button data-email="${user.email}" onclick="approveUser(this.getAttribute('data-email'))" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">✅ Aprovar</button>
+                                <button data-email="${user.email}" onclick="rejectUser(this.getAttribute('data-email'))" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">❌ Rejeitar</button>
                             </div>
                         </div>
                     </div>
@@ -2036,10 +2036,10 @@
                 html += `
                     <div style="background: #f8f8f8; padding: 15px; border-radius: 5px; border-left: 4px solid #28a745; display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <p style="margin: 0 0 3px 0; font-weight: 600; color: #333;">${user.name}</p>
-                            <p style="margin: 0; font-size: 12px; color: #666;">📧 ${user.email}</p>
+                            <p style="margin: 0 0 3px 0; font-weight: 600; color: #333;">${escapeHtml(user.name)}</p>
+                            <p style="margin: 0; font-size: 12px; color: #666;">📧 ${escapeHtml(user.email)}</p>
                         </div>
-                        <button onclick="blockUser('${user.email}')" style="padding: 8px 16px; background: #ffc107; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">🚫 Bloquear</button>
+                        <button data-email="${user.email}" onclick="blockUser(this.getAttribute('data-email'))" style="padding: 8px 16px; background: #ffc107; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">🚫 Bloquear</button>
                     </div>
                 `;
             });
@@ -2066,10 +2066,10 @@
                 html += `
                     <div style="background: #f8f8f8; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545; display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <p style="margin: 0 0 3px 0; font-weight: 600; color: #333;">${user.name}</p>
-                            <p style="margin: 0; font-size: 12px; color: #666;">📧 ${user.email}</p>
+                            <p style="margin: 0 0 3px 0; font-weight: 600; color: #333;">${escapeHtml(user.name)}</p>
+                            <p style="margin: 0; font-size: 12px; color: #666;">📧 ${escapeHtml(user.email)}</p>
                         </div>
-                        <button onclick="unblockUser('${user.email}')" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">✅ Desbloquear</button>
+                        <button data-email="${user.email}" onclick="unblockUser(this.getAttribute('data-email'))" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">✅ Desbloquear</button>
                     </div>
                 `;
             });
