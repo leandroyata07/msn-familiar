@@ -1116,6 +1116,7 @@
             if (typeof firebase !== 'undefined' && firebase.initializeApp) {
                 firebaseReady = true;
                 console.log('✅ Firebase SDK carregado e pronto!');
+                console.log('🔥 IMPORTANTE: Firebase carregou do CDN com sucesso!');
                 initializeApp();
             } else if (retries < maxRetries) {
                 retries++;
@@ -1124,6 +1125,8 @@
             } else {
                 console.error('❌ Firebase não conseguiu carregar após 5 segundos');
                 console.error('   Possível causa: CDN bloqueado ou sem internet');
+                console.error('🚨 GRAVE: Sistema não vai sincronizar entre dispositivos!');
+                alert('⚠️ ATENÇÃO: Firebase não carregou!\n\nSistema vai funcionar apenas localmente.\nDados NÃO vão sincronizar entre você e seu filho.\n\nPossíveis causas:\n- Sem internet\n- Firewall bloqueando Firebase\n- Navegador com JavaScript bloqueado');
                 initializeApp(); // Continuar mesmo sem Firebase
             }
         }
@@ -2637,6 +2640,17 @@
                 useFirebase = true;
                 console.log('✅ Firebase inicializado com sucesso!');
                 console.log('🔥 Firebase está ATIVO e funcional');
+                console.log('✅ Banco de dados: ' + firebaseConfig.databaseURL);
+                console.log('✅ Sistema vai sincronizar entre dispositivos!');
+                
+                // Testar conexão real
+                database.ref('.info/connected').on('value', (snapshot) => {
+                    if (snapshot.val() === true) {
+                        console.log('🌐 CONECTADO ao Firebase Realtime Database!');
+                    } else {
+                        console.warn('⚠️ Desconectado do Firebase (sem internet?)');
+                    }
+                });
             } catch (e) {
                 firebaseInitError = e;
                 console.error('❌ ERRO AO INICIALIZAR FIREBASE:');
