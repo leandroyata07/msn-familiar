@@ -1187,6 +1187,35 @@
                 }
             }
 
+            // 🔥 TENTAR CARREGAR DO FIREBASE PRIMEIRO
+            if (useFirebase && database) {
+                const emailKey = email.replace(/\./g, '_').replace(/@/g, '_');
+                database.ref(`users/${emailKey}`).once('value', (snapshot) => {
+                    const fbUser = snapshot.val();
+                    
+                    // Se existe no Firebase, sincronizar localmente
+                    if (fbUser) {
+                        state.users[email] = {
+                            ...fbUser,
+                            email: email
+                        };
+                        saveData();
+                        console.log('✅ Usuário carregado do Firebase');
+                    }
+                    
+                    // Depois fazer login normalmente
+                    performLogin(email, password);
+                }).catch(e => {
+                    console.warn('⚠️ Erro ao carregar de Firebase, tentando localStorage:', e);
+                    performLogin(email, password);
+                });
+            } else {
+                performLogin(email, password);
+            }
+        }
+
+        function performLogin(email, password) {
+            // Procurar usuário localmente
             if (!state.users[email]) {
                 showErrorMessage('Usuário não encontrado');
                 return;
@@ -2029,6 +2058,15 @@
                 <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                     <h3 style="margin-bottom: 20px; color: #333;">⚙️ Configurações e Estatísticas</h3>
                     
+                    <div style="background: ${useFirebase ? '#d4edda' : '#f8d7da'}; border-left: 4px solid ${useFirebase ? '#28a745' : '#dc3545'}; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <p style="margin: 0; font-size: 13px; color: ${useFirebase ? '#155724' : '#721c24'}; font-weight: 600;">
+                            🔥 Firebase: <span style="font-weight: bold;">${useFirebase ? '✅ ATIVO' : '❌ INATIVO'}</span>
+                        </p>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: ${useFirebase ? '#155724' : '#721c24'};">
+                            ${useFirebase ? 'Dados serão sincronizados com nuvem' : 'Usando apenas armazenamento local'}
+                        </p>
+                    </div>
+                    
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
                         <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center;">
                             <div style="font-size: 24px; font-weight: bold; color: #ff6b6b;">${stats.pending}</div>
@@ -2721,10 +2759,55 @@
 
         // Iniciar listeners quando admin loga
         function startFirebaseListeners() {
-            if (!useFirebase || !database) return; // Firebase não disponível
+            if (!useFirebase || !database) {
+                console.log('⚠️ Firebase não disponível');
+                return;
+            }
             
             // Para ADMIN: escuta usuários pendentes
             if (state.adminMode) {
+                console.log('🔥 Iniciando listeners de admin...');
+                
+                // CARREGAR DADOS INICIAIS DO FIREBASE
+                database.ref('pendingUsers').once('value', (snapshot) => {
+                    const fbPendingUsers = snapshot.val() || {};
+                    let newUsersCount = 0;
+                    
+                    Object.keys(fbPendingUsers).forEach(key => {
+                        const email = key.replace(/_/g, '.');
+                        if (!state.pendingUsers[email]) {
+                            state.pendingUsers[email] = fbPendingUsers[key];
+                            newUsersCount++;
+                        }
+                    });
+                    
+                    if (newUsersCount > 0) {
+                        console.log(`✅ Carregados ${newUsersCount} usuários pendentes do Firebase`);
+                        saveData();
+                        switchAdminTab('pending');
+                    }
+                }).catch(e => console.warn('⚠️ Erro ao carregar pendentes:', e));
+                
+                // CARREGAR USUÁRIOS APROVADOS
+                database.ref('users').once('value', (snapshot) => {
+                    const fbUsers = snapshot.val() || {};
+                    let newUsersCount = 0;
+                    
+                    Object.keys(fbUsers).forEach(key => {
+                        const email = key.replace(/_/g, '.');
+                        if (!state.users[email]) {
+                            state.users[email] = fbUsers[key];
+                            newUsersCount++;
+                        }
+                    });
+                    
+                    if (newUsersCount > 0) {
+                        console.log(`✅ Carregados ${newUsersCount} usuários aprovados do Firebase`);
+                        saveData();
+                    }
+                }).catch(e => console.warn('⚠️ Erro ao carregar usuários:', e));
+                
+                // Agora monitorar mudanças em tempo real
                 listenForPendingUsers();
                 listenForApprovedUsers();
             }
