@@ -1104,6 +1104,33 @@
     </div>
 
     <script>
+        // ==================== AGUARDAR FIREBASE CARREGAR ====================
+        // Problema: Firebase CDN pode não estar pronto quando o código roda
+        // Solução: Aguardar que firebase.initializeApp exista
+        
+        let firebaseReady = false;
+        const maxRetries = 50; // 5 segundos (50 * 100ms)
+        let retries = 0;
+
+        function checkFirebaseReady() {
+            if (typeof firebase !== 'undefined' && firebase.initializeApp) {
+                firebaseReady = true;
+                console.log('✅ Firebase SDK carregado e pronto!');
+                initializeApp();
+            } else if (retries < maxRetries) {
+                retries++;
+                console.log(`⏳ Aguardando Firebase... (${retries}/${maxRetries})`);
+                setTimeout(checkFirebaseReady, 100);
+            } else {
+                console.error('❌ Firebase não conseguiu carregar após 5 segundos');
+                console.error('   Possível causa: CDN bloqueado ou sem internet');
+                initializeApp(); // Continuar mesmo sem Firebase
+            }
+        }
+
+        // Iniciar verificação imediatamente
+        setTimeout(checkFirebaseReady, 100);
+
         // ==================== HASH SIMPLES PARA SENHAS ====================
         function simpleHash(str) {
             let hash = 0;
@@ -2592,29 +2619,47 @@
         let database = null;
         let firebaseInitError = null;
 
-        // Initialize Firebase com tratamento de erros
-        try {
-            console.log('🔥 Tentando inicializar Firebase...');
-            console.log('📍 Config: ', {
-                projectId: firebaseConfig.projectId,
-                databaseURL: firebaseConfig.databaseURL
-            });
+        // Função para inicializar Firebase
+        function initializeFirebaseNow() {
+            // Se já foi inicializado, pula
+            if (useFirebase || auth || database) return;
+
+            try {
+                console.log('🔥 Tentando inicializar Firebase...');
+                console.log('📍 Config: ', {
+                    projectId: firebaseConfig.projectId,
+                    databaseURL: firebaseConfig.databaseURL
+                });
+                
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                database = firebase.database();
+                useFirebase = true;
+                console.log('✅ Firebase inicializado com sucesso!');
+                console.log('🔥 Firebase está ATIVO e funcional');
+            } catch (e) {
+                firebaseInitError = e;
+                console.error('❌ ERRO AO INICIALIZAR FIREBASE:');
+                console.error('   Tipo de erro:', e.code || e.name);
+                console.error('   Mensagem:', e.message);
+                console.error('   Stack:', e.stack);
+                console.warn('⚠️ FALHA CRÍTICA: Usando apenas localStorage como armazenamento');
+                console.warn('⚠️ Dados NÃO serão sincronizados entre dispositivos!');
+                useFirebase = false;
+            }
+        }
+
+        // Função chamada quando Firebase SDK está pronto
+        function initializeApp() {
+            console.log('🚀 Inicializando aplicação...');
             
-            firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            database = firebase.database();
-            useFirebase = true;
-            console.log('✅ Firebase inicializado com sucesso!');
-            console.log('🔥 Firebase está ATIVO e funcional');
-        } catch (e) {
-            firebaseInitError = e;
-            console.error('❌ ERRO AO INICIALIZAR FIREBASE:');
-            console.error('   Tipo de erro:', e.code || e.name);
-            console.error('   Mensagem:', e.message);
-            console.error('   Stack:', e.stack);
-            console.warn('⚠️ FALHA CRÍTICA: Usando apenas localStorage como armazenamento');
-            console.warn('⚠️ Dados NÃO serão sincronizados entre dispositivos!');
-            useFirebase = false;
+            // Inicializar Firebase agora que SDK está pronto
+            initializeFirebaseNow();
+            
+            // Resto da inicialização que depende do DOM
+            showLoginScreen();
+            loadData();
+            console.log('✅ Aplicação inicializada!');
         }
 
         // Função para sincronizar dados com Firebase
