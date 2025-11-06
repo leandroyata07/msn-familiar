@@ -2081,8 +2081,14 @@
 
                     <div style="border-top: 2px solid #e0e0e0; padding-top: 20px;">
                         <h4 style="color: #333; margin-bottom: 15px;">🔧 Ações</h4>
-                        <button onclick="exportAdminData()" style="padding: 10px 20px; background: #0098d4; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; margin-right: 10px;">📥 Exportar Dados</button>
-                        <button onclick="clearAllDataAdmin()" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">🗑️ Limpar Tudo</button>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                            <button onclick="exportAdminData()" style="padding: 10px 20px; background: #0098d4; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">📥 Exportar Dados</button>
+                            <button onclick="deleteAllUsersPrompt()" style="padding: 10px 20px; background: #ff9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">🗑️ Deletar Usuários</button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button onclick="clearAppCachePrompt()" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">🧹 Limpar Cache App</button>
+                            <button onclick="clearAllDataAdmin()" style="padding: 10px 20px; background: #8B0000; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">� Limpar Tudo</button>
+                        </div>
                     </div>
 
                     <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 5px; margin-top: 20px; font-size: 12px; color: #856404;">
@@ -2208,6 +2214,130 @@
                     showNotification('Todos os dados foram deletados', 'success');
                 }
             }
+        }
+
+        // Deletar apenas usuários aprovados (não toca em mensagens)
+        function deleteAllUsersPrompt() {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <h3 style="margin: 0 0 15px 0; color: #333;">🗑️ Deletar Todos os Usuários</h3>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 15px 0;">
+                        Isso vai remover todos os usuários <strong>aprovados e pendentes</strong>, mas mantém as mensagens intactas.
+                    </p>
+                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 12px; color: #856404;">
+                        ⚠️ Você precisará inserir a senha de admin para confirmar.
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; color: #333; font-weight: 600; font-size: 12px;">Senha de Admin:</label>
+                        <input type="password" id="adminPasswordDelete" placeholder="Digite a senha de admin" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box;">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="confirmDeleteAllUsers()" style="flex: 1; padding: 12px; background: #ff9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">Confirmar Exclusão</button>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" style="flex: 1; padding: 12px; background: #999; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">Cancelar</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            document.getElementById('adminPasswordDelete').focus();
+        }
+
+        function confirmDeleteAllUsers() {
+            const password = document.getElementById('adminPasswordDelete').value;
+            
+            // Verificar senha do admin
+            if (password !== 'killer') {
+                alert('❌ Senha de admin incorreta!');
+                return;
+            }
+            
+            // Deletar usuários
+            state.users = {};
+            state.pendingUsers = {};
+            saveData();
+            
+            // Fechar modal
+            document.querySelector('[style*="position: fixed"]').remove();
+            
+            switchAdminTab('pending');
+            showNotification('✅ Todos os usuários foram deletados!', 'success');
+            console.log('✅ Usuários deletados via admin');
+        }
+
+        // Limpar apenas cache do app (localStorage de usuários, não admin)
+        function clearAppCachePrompt() {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <h3 style="margin: 0 0 15px 0; color: #333;">🧹 Limpar Cache do App</h3>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 15px 0;">
+                        Isso vai limpar apenas o cache do localStorage do aplicativo (dados de usuários, mensagens, etc).
+                    </p>
+                    <div style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 12px; color: #1565c0;">
+                        <strong>O que vai ser limpo:</strong>
+                        <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+                            <li>Dados dos usuários</li>
+                            <li>Mensagens em cache</li>
+                            <li>Informações de contatos</li>
+                            <li>Dados de sessão</li>
+                        </ul>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; color: #333; font-weight: 600; font-size: 12px;">Senha de Admin:</label>
+                        <input type="password" id="adminPasswordCache" placeholder="Digite a senha de admin" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box;">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="confirmClearAppCache()" style="flex: 1; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">Limpar Cache</button>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" style="flex: 1; padding: 12px; background: #999; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px;">Cancelar</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            document.getElementById('adminPasswordCache').focus();
+        }
+
+        function confirmClearAppCache() {
+            const password = document.getElementById('adminPasswordCache').value;
+            
+            // Verificar senha do admin
+            if (password !== 'killer') {
+                alert('❌ Senha de admin incorreta!');
+                return;
+            }
+            
+            // Limpar apenas cache do app (não toca em admin)
+            localStorage.removeItem('messengerUsers');
+            localStorage.removeItem('messengerMessages');
+            localStorage.removeItem('messengerPendingUsers');
+            localStorage.removeItem('messengerCurrentUser');
+            
+            // Recarregar apenas a lista de usuários local
+            state.users = {
+                'admin@msnfamiliar.com': state.users['admin@msnfamiliar.com'] || {
+                    email: 'admin@msnfamiliar.com',
+                    passwordHash: simpleHash('killer'),
+                    name: 'Administrador',
+                    approved: true,
+                    contacts: [],
+                    status: 'offline'
+                }
+            };
+            state.messages = {};
+            state.pendingUsers = {};
+            saveData();
+            
+            // Fechar modal
+            document.querySelector('[style*="position: fixed"]').remove();
+            
+            switchAdminTab('pending');
+            showNotification('✅ Cache do app foi limpo com sucesso!', 'success');
+            console.log('✅ Cache do app limpo via admin');
         }
 
         function generateSyncCode() {
