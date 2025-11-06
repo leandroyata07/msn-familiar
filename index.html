@@ -2065,6 +2065,11 @@
                         <p style="margin: 5px 0 0 0; font-size: 11px; color: ${useFirebase ? '#155724' : '#721c24'};">
                             ${useFirebase ? 'Dados serão sincronizados com nuvem' : 'Usando apenas armazenamento local'}
                         </p>
+                        ${firebaseInitError ? `
+                        <p style="margin: 8px 0 0 0; font-size: 11px; color: #721c24; font-family: monospace; background: rgba(0,0,0,0.1); padding: 8px; border-radius: 3px;">
+                            <strong>Erro:</strong> ${firebaseInitError.message || firebaseInitError}
+                        </p>
+                        ` : ''}
                     </div>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
@@ -2585,17 +2590,30 @@
         let useFirebase = false;
         let auth = null;
         let database = null;
+        let firebaseInitError = null;
 
         // Initialize Firebase com tratamento de erros
         try {
+            console.log('🔥 Tentando inicializar Firebase...');
+            console.log('📍 Config: ', {
+                projectId: firebaseConfig.projectId,
+                databaseURL: firebaseConfig.databaseURL
+            });
+            
             firebase.initializeApp(firebaseConfig);
             auth = firebase.auth();
             database = firebase.database();
             useFirebase = true;
-            console.log('✅ Firebase inicializado com sucesso');
+            console.log('✅ Firebase inicializado com sucesso!');
+            console.log('🔥 Firebase está ATIVO e funcional');
         } catch (e) {
-            console.error('❌ Erro ao inicializar Firebase:', e);
-            console.warn('⚠️ Usando apenas localStorage como armazenamento');
+            firebaseInitError = e;
+            console.error('❌ ERRO AO INICIALIZAR FIREBASE:');
+            console.error('   Tipo de erro:', e.code || e.name);
+            console.error('   Mensagem:', e.message);
+            console.error('   Stack:', e.stack);
+            console.warn('⚠️ FALHA CRÍTICA: Usando apenas localStorage como armazenamento');
+            console.warn('⚠️ Dados NÃO serão sincronizados entre dispositivos!');
             useFirebase = false;
         }
 
@@ -2618,19 +2636,38 @@
 
         // Função para sincronizar usuários pendentes com Firebase
         function syncPendingUserToFirebase(email, pendingData) {
-            if (!useFirebase || !database) return; // Firebase não disponível
+            console.log('🔄 syncPendingUserToFirebase chamado para:', email);
+            console.log('   useFirebase:', useFirebase);
+            console.log('   database disponível:', !!database);
+            
+            if (!useFirebase || !database) {
+                console.error('❌ FIREBASE NÃO DISPONÍVEL!');
+                console.error('   useFirebase:', useFirebase);
+                console.error('   database:', database);
+                if (firebaseInitError) {
+                    console.error('   Erro de inicialização:', firebaseInitError.message);
+                }
+                return;
+            }
+            
             try {
                 const emailKey = email.replace(/\./g, '_').replace(/@/g, '_');
+                console.log('📝 Gravando em pendingUsers/' + emailKey);
+                
                 database.ref(`pendingUsers/${emailKey}`).set({
                     ...pendingData,
                     email: email,
                     requestedAt: new Date().toISOString()
+                }).then(() => {
+                    console.log('✅ Usuário pendente GRAVADO no Firebase:', email);
                 }).catch(e => {
-                    console.error('Erro ao sincronizar pendente com Firebase:', e);
+                    console.error('❌ Erro ao sincronizar pendente com Firebase:', e);
+                    console.error('   Erro code:', e.code);
+                    console.error('   Erro message:', e.message);
                     useFirebase = false;
                 });
             } catch (e) {
-                console.error('Erro Firebase:', e);
+                console.error('❌ Erro crítico Firebase:', e);
                 useFirebase = false;
             }
         }
