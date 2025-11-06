@@ -1262,7 +1262,10 @@
 
             saveData();
             
-            // � Sincronizar com Firebase
+            // Broadcast para outras abas do admin
+            broadcastNewPendingUser(email, state.pendingUsers[email]);
+            
+            // 💾 Sincronizar com Firebase
             syncPendingUserToFirebase(email, {
                 name: name,
                 email: email,
@@ -1270,7 +1273,7 @@
                 createdAt: new Date().toISOString()
             });
             
-            // �🔔 Notificar admin via URL webhook
+            // 🔔 Notificar admin via URL webhook
             notifyAdminNewRegistration(email, name);
             
             // Fechar modal PRIMEIRO - antes de qualquer notificação
@@ -1616,6 +1619,26 @@
                     }
                 }
                 
+                // NOVO: Sincronizar usuário pendente entre abas
+                if (type === 'new_pending_user') {
+                    const { email, userData } = data;
+                    if (!state.pendingUsers[email]) {
+                        state.pendingUsers[email] = userData;
+                        saveData();
+                        
+                        // Atualizar UI se admin está logado
+                        if (state.adminMode) {
+                            const content = document.querySelector('[data-tab="pending"]');
+                            if (content) {
+                                renderPendingUsers(content);
+                                console.log('✅ Usuário pendente sincronizado via BroadcastChannel');
+                            }
+                            playNotificationSound();
+                            showNotification('🔔 Novo registro pendente!', 'info');
+                        }
+                    }
+                }
+                
                 if (type === 'user_status_changed') {
                     const { email, status } = data;
                     if (state.users[email]) {
@@ -1638,6 +1661,20 @@
                 }
             } catch (e) {
                 console.warn('⚠️ Erro ao broadcast mensagem:', e);
+            }
+        }
+
+        // Broadcast de novo usuário pendente
+        function broadcastNewPendingUser(email, userData) {
+            try {
+                if (messageBroadcastChannel) {
+                    messageBroadcastChannel.postMessage({
+                        type: 'new_pending_user',
+                        data: { email, userData }
+                    });
+                }
+            } catch (e) {
+                console.warn('⚠️ Erro ao broadcast usuário pendente:', e);
             }
         }
 
@@ -2493,20 +2530,35 @@
             try {
                 database.ref('pendingUsers').on('value', (snapshot) => {
                     const fbPendingUsers = snapshot.val() || {};
+                    let hasNewUsers = false;
                     
                     // Converter chaves de volta para email
                     Object.keys(fbPendingUsers).forEach(key => {
                         const email = key.replace(/_/g, '.');
-                        // Não adiciona se já existe localmente
+                        // Detectar novos usuários
                         if (!state.pendingUsers[email]) {
+                            hasNewUsers = true;
                             state.pendingUsers[email] = fbPendingUsers[key];
                         }
                     });
                     
+                    // Salvar dados locais se houve mudança
+                    if (hasNewUsers) {
+                        saveData();
+                    }
+                    
                     // Atualizar UI se admin está logado
-                    if (state.adminMode) {
-                        switchAdminTab('pending');
-                        showNotification('🔔 Novo registro pendente recebido!', 'info');
+                    if (state.adminMode && (hasNewUsers || Object.keys(fbPendingUsers).length > 0)) {
+                        // Recarregar a aba de pendentes
+                        const content = document.querySelector('[data-tab="pending"]');
+                        if (content) {
+                            renderPendingUsers(content);
+                            console.log('✅ Lista de pendentes atualizada via Firebase');
+                        }
+                        if (hasNewUsers) {
+                            showNotification('🔔 Novo registro pendente recebido!', 'info');
+                            playNotificationSound();
+                        }
                     }
                 });
             } catch (e) {
