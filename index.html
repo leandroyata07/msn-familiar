@@ -2790,9 +2790,16 @@
                 console.warn('⚠️ Firebase não disponível para escutar usuários pendentes');
                 return;
             }
+            
+            console.log('🔥👂 ATIVANDO LISTENER DE USUÁRIOS PENDENTES...');
+            console.log('📡 Vai ouvir mudanças em: pendingUsers/');
+            
             try {
                 database.ref('pendingUsers').on('value', (snapshot) => {
+                    console.log('🔔 FIREBASE NOTIFICOU MUDANÇA em pendingUsers!');
                     const fbPendingUsers = snapshot.val() || {};
+                    console.log('📦 Dados recebidos do Firebase:', fbPendingUsers);
+                    
                     let hasNewUsers = false;
                     
                     // Converter chaves de volta para email
@@ -2802,12 +2809,14 @@
                         if (!state.pendingUsers[email]) {
                             hasNewUsers = true;
                             state.pendingUsers[email] = fbPendingUsers[key];
+                            console.log(`🆕 NOVO USUÁRIO PENDENTE DETECTADO: ${email}`);
                         }
                     });
                     
                     // Salvar dados locais se houve mudança
                     if (hasNewUsers) {
                         saveData();
+                        console.log('💾 Dados salvos localmente');
                     }
                     
                     // Atualizar UI se admin está logado
@@ -2819,13 +2828,16 @@
                             console.log('✅ Lista de pendentes atualizada via Firebase');
                         }
                         if (hasNewUsers) {
+                            console.log('🔔 MOSTRANDO NOTIFICAÇÃO PARA ADMIN!');
                             showNotification('🔔 Novo registro pendente recebido!', 'info');
                             playNotificationSound();
                         }
                     }
                 });
+                
+                console.log('✅ Listener de pendingUsers ATIVO e aguardando mudanças!');
             } catch (e) {
-                console.error('Erro ao escutar usuários pendentes:', e);
+                console.error('❌ Erro ao escutar usuários pendentes:', e);
             }
         }
 
@@ -2835,20 +2847,29 @@
                 console.warn('⚠️ Firebase não disponível para escutar usuários aprovados');
                 return;
             }
+            
+            console.log('🔥👂 ATIVANDO LISTENER DE USUÁRIOS APROVADOS...');
+            console.log('📡 Vai ouvir mudanças em: users/');
+            
             try {
                 database.ref('users').on('value', (snapshot) => {
+                    console.log('🔔 FIREBASE NOTIFICOU MUDANÇA em users!');
                     const fbUsers = snapshot.val() || {};
+                    console.log('📦 Usuários aprovados no Firebase:', Object.keys(fbUsers).length);
                     
                     // Sincronizar usuários do Firebase
                     Object.keys(fbUsers).forEach(key => {
                         const email = key.replace(/_/g, '.');
                         if (!state.users[email]) {
                             state.users[email] = fbUsers[key];
+                            console.log(`✅ Usuário aprovado sincronizado: ${email}`);
                         }
                     });
                 });
+                
+                console.log('✅ Listener de users ATIVO e aguardando mudanças!');
             } catch (e) {
-                console.error('Erro ao escutar usuários aprovados:', e);
+                console.error('❌ Erro ao escutar usuários aprovados:', e);
             }
         }
 
